@@ -1,4 +1,4 @@
-package com.vichu.passwordmanager.ui.theme
+package com.vichu.thevault.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

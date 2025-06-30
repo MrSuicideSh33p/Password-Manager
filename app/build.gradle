@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.vichu.passwordmanager'
+    namespace 'com.vichu.thevault'
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.vichu.passwordmanager"
+        applicationId "com.vichu.thevault"
         minSdk 24
         targetSdk 34
         versionCode 1
@@ -57,6 +57,7 @@ dependencies {
     implementation libs.androidx.ui.tooling.preview
     implementation libs.androidx.material3
     implementation libs.androidx.appcompat
+    implementation libs.aws.android.sdk.s3
     testImplementation libs.junit
     androidTestImplementation libs.androidx.junit
     androidTestImplementation libs.androidx.espresso.core
