@@ -12,7 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.vichu.thevault.R;
-import com.vichu.thevault.model.CredentialData;
+import com.vichu.thevault.models.CredentialData;
 import com.vichu.thevault.utils.AwsS3Helper;
 
 public class AddCredentialsActivity extends AppCompatActivity {

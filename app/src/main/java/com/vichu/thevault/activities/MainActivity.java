@@ -13,9 +13,6 @@ import com.vichu.thevault.R;
 
 public class MainActivity extends AppCompatActivity {
 
-    private DrawerLayout drawerLayout;
-    private ActionBarDrawerToggle toggle;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -25,12 +22,20 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        LinearLayout addContactSection = findViewById(R.id.add_credentials_section);
-        addContactSection.setOnClickListener(v -> openAddCredentialsScreen());
+        LinearLayout addCredentialSection = findViewById(R.id.add_credentials_section);
+        addCredentialSection.setOnClickListener(v -> openAddCredentialsScreen());
+
+        LinearLayout viewCredentialSection = findViewById(R.id.view_credentials_section);
+        viewCredentialSection.setOnClickListener(v -> openViewCredentialsScreen());
     }
 
     private void openAddCredentialsScreen() {
         Intent intent = new Intent(this, AddCredentialsActivity.class);
+        startActivity(intent);
+    }
+
+    private void openViewCredentialsScreen() {
+        Intent intent = new Intent(this, CredentialListActivity.class);
         startActivity(intent);
     }
 

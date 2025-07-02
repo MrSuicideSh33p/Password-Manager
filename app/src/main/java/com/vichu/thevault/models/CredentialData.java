@@ -1,4 +1,4 @@
-package com.vichu.thevault.model;
+package com.vichu.thevault.models;
 
 public class CredentialData {
     private String website;

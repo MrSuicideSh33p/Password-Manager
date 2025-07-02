@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">The Vault</string>
+    <string name="loading_text">Crunching the latest data, just for you. Hang tight…</string>
 </resources>

@@ -24,6 +24,8 @@
             </intent-filter>
         </activity>
         <activity android:name="com.vichu.thevault.activities.AddCredentialsActivity"/>
+        <activity android:name="com.vichu.thevault.activities.CredentialListActivity"/>
+        <activity android:name="com.vichu.thevault.activities.CredentialDetailsActivity"/>
     </application>
 
 </manifest>
