@@ -27,34 +27,32 @@ public class AddCredentialsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_credentials);
 
-        Toolbar toolbar = findViewById(R.id.credentialsEntryToolbar);
-        setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setHomeButtonEnabled(true);
-        }
+        initViews();
+        initToolbar();
+        awsS3Helper = new AwsS3Helper(this);
+    }
 
-        // Initialize UI elements
+    private void initViews() {
         websiteInput = findViewById(R.id.et_website);
         usernameInput = findViewById(R.id.et_username);
         passwordInput = findViewById(R.id.et_password);
         privateKeyInput = findViewById(R.id.et_private_key);
         notesInput = findViewById(R.id.et_notes);
-        awsS3Helper = new AwsS3Helper(this);
+    }
+
+    private void initToolbar() {
+        Toolbar toolbar = findViewById(R.id.credentialsEntryToolbar);
+        setSupportActionBar(toolbar);
+
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setHomeButtonEnabled(true);
+        }
     }
 
     @Override
     public void onBackPressed() {
-        if (isAnyFieldFilled()) {
-            new AlertDialog.Builder(this)
-                    .setTitle("Confirm Exit")
-                    .setMessage("The text you entered will be lost. Are you sure you want to proceed?")
-                    .setPositiveButton("Yes", (dialog, which) -> super.onBackPressed()) // Go back
-                    .setNegativeButton("No", (dialog, which) -> dialog.dismiss()) // Stay on page
-                    .show();
-        } else {
-            super.onBackPressed(); // No changes, exit normally
-        }
+        confirmExitIfNeeded(() -> super.onBackPressed());
     }
 
     @Override
@@ -65,26 +63,27 @@ public class AddCredentialsActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
-            confirmExit();
+        int id = item.getItemId();
+        if (id == android.R.id.home) {
+            confirmExitIfNeeded(this::finish);
             return true;
-        } else if (item.getItemId() == R.id.action_save) {
-            saveCredentials(); // Handle save button
+        } else if (id == R.id.action_save) {
+            saveCredentials();
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-    private void confirmExit() {
+    private void confirmExitIfNeeded(Runnable exitAction) {
         if (isAnyFieldFilled()) {
             new AlertDialog.Builder(this)
                     .setTitle("Confirm Exit")
                     .setMessage("The text you entered will be lost. Are you sure you want to proceed?")
-                    .setPositiveButton("Yes", (dialog, which) -> finish()) // Close activity
-                    .setNegativeButton("No", (dialog, which) -> dialog.dismiss()) // Stay on page
+                    .setPositiveButton("Yes", (dialog, which) -> exitAction.run()) //Close activity
+                    .setNegativeButton("No", (dialog, which) -> dialog.dismiss()) //Stay on page
                     .show();
         } else {
-            finish(); // Exit if no fields are filled
+            exitAction.run();
         }
     }
 
@@ -96,34 +95,32 @@ public class AddCredentialsActivity extends AppCompatActivity {
         String notes = notesInput.getText().toString().trim();
 
         if (website.isEmpty() || username.isEmpty() || password.isEmpty() || privateKey.isEmpty()) {
-            Toast.makeText(AddCredentialsActivity.this, "Please don't leave any fields blank!", Toast.LENGTH_SHORT).show();
+            showToast("Please don't leave any fields blank!");
             return;
         }
 
         String salt = EncryptionHelper.generateSalt();
+        String encryptedPassword;
         try {
-            password = EncryptionHelper.encrypt(password, privateKey, salt);
+            encryptedPassword = EncryptionHelper.encrypt(password, privateKey, salt);
         } catch (Exception e) {
-            Log.e("EncryptionHelper", "Error encrypting password: " + e.getMessage(), e);
+            Log.e("EncryptionHelper", "Error encrypting password", e);
+            showToast("Encryption failed. Please try again.");
+            return;
         }
 
-        CredentialData credentialData = new CredentialData(website, username, password, privateKey, salt, notes);
-        String credentialsContent = credentialData.toFileFormat();
-        String fileName = "credentials/" + website.replaceAll("\\s+", "_") + "-" + username.replaceAll("\\s", "_") + ".txt"; // Ensure a valid file name
+        CredentialData credentialData = new CredentialData(website, username, encryptedPassword, privateKey, salt, notes);
+        String fileContent = credentialData.toFileFormat();
+        String fileName = buildFileName(website, username);
 
-        awsS3Helper.uploadCredentials(fileName, credentialsContent, success -> {
-            runOnUiThread(() -> {
-                if (success) {
-                    Toast.makeText(this, "Credentials successfully saved!", Toast.LENGTH_SHORT).show();
-                    Intent intent = new Intent(this, MainActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                    startActivity(intent);
-                    finish();
-                } else {
-                    Toast.makeText(this, "Failed to save credentials!", Toast.LENGTH_SHORT).show();
-                }
-            });
-        });
+        awsS3Helper.uploadCredentials(fileName, fileContent, success -> runOnUiThread(() -> {
+            if (success) {
+                showToast("Credentials successfully saved!");
+                navigateToMain();
+            } else {
+                showToast("Failed to save credentials!");
+            }
+        }));
     }
 
     private boolean isAnyFieldFilled() {
@@ -132,5 +129,21 @@ public class AddCredentialsActivity extends AppCompatActivity {
                 !passwordInput.getText().toString().trim().isEmpty() ||
                 !privateKeyInput.getText().toString().trim().isEmpty() ||
                 !notesInput.getText().toString().trim().isEmpty();
+    }
+
+    private void showToast(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    private String buildFileName(String website, String username) {
+        return "credentials/" + website.replaceAll("\\s+", "_") +
+                "-" +username.replaceAll("\\s+", "_") + ".txt";
+    }
+
+    private void navigateToMain() {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent);
+        finish();
     }
 }

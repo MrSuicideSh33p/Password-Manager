@@ -26,45 +26,60 @@ import java.util.Objects;
 
 public class CredentialListActivity extends AppCompatActivity {
 
+    private static final int REQUEST_CODE_CREDENTIAL_DETAILS = 1;
+
     private MenuItem searchItem;
     private TextView progressText;
     private ListView credentialListView;
     private ImageView emptyStateImage;
     private ProgressBar progressBar;
+
     private ArrayAdapter<String> adapter;
+
     private final List<String> credentialNames = new ArrayList<>();
-    private final List<String> reusableCredentialNames = new ArrayList<>(); // Store original list separately
+    private final List<String> reusableCredentialNames = new ArrayList<>();
     private final List<String> credentialFiles = new ArrayList<>();
     private final List<Integer> filteredIndices = new ArrayList<>();
+
     private AwsS3Helper awsS3Helper;
-    private static final int REQUEST_CODE_CREDENTIAL_DETAILS = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_credential_list);
+
+        initViews();
+        initToolbar();
+        initListView();
+
+        awsS3Helper = new AwsS3Helper(this);
+        fetchCredentials();
+    }
+
+    private void initViews() {
         emptyStateImage = findViewById(R.id.emptyStateImage);
         credentialListView = findViewById(R.id.credentialListView);
+        progressText = findViewById(R.id.progressText);
+        progressBar = findViewById(R.id.progressBar);
+    }
 
+    private void initToolbar() {
         Toolbar toolbar = findViewById(R.id.credentialListToolbar);
         setSupportActionBar(toolbar);
         Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
         toolbar.setNavigationOnClickListener(v -> finish());
+    }
 
-        progressText = findViewById(R.id.progressText);
-        progressBar = findViewById(R.id.progressBar);
-
+    private void initListView() {
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, credentialNames);
         credentialListView.setAdapter(adapter);
 
-        awsS3Helper = new AwsS3Helper(this);
-
-        fetchCredentials();
-
         credentialListView.setOnItemClickListener((parent, view, position, id) -> {
-            Intent intent = new Intent(CredentialListActivity.this, CredentialDetailsActivity.class);
-            int originalIndex = (filteredIndices.isEmpty()) ? position : filteredIndices.get(position);
-            intent.putExtra("credentialFile", credentialFiles.get(originalIndex));
+            int originalIndex = filteredIndices.isEmpty() ? position : filteredIndices.get(position);
+            String selectedFile = credentialFiles.get(originalIndex);
+
+            Intent intent = new Intent(this, CredentialDetailsActivity.class);
+            intent.putExtra("credentialFile", selectedFile);
             startActivityForResult(intent, REQUEST_CODE_CREDENTIAL_DETAILS);
         });
     }
@@ -74,12 +89,18 @@ public class CredentialListActivity extends AppCompatActivity {
         getMenuInflater().inflate(R.menu.credential_list_menu, menu);
         searchItem = menu.findItem(R.id.action_search);
         SearchView searchView = (SearchView) searchItem.getActionView();
+
+        setupSearchView(searchView);
+        return true;
+    }
+
+    private void setupSearchView(SearchView searchView) {
         searchView.setIconified(false);
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                return false; // No need to handle submit separately
+                return false;
             }
 
             @Override
@@ -105,17 +126,16 @@ public class CredentialListActivity extends AppCompatActivity {
                 searchView.setIconified(false);
             }
         });
-
-        return true;
     }
 
-    public void filterCredentials(String query) {
+    private void filterCredentials(String query) {
         credentialNames.clear();
         filteredIndices.clear(); // Reset indices tracking
 
         for (int i = 0; i < reusableCredentialNames.size(); i++) {
-            if (reusableCredentialNames.get(i).toLowerCase().contains(query.toLowerCase())) {
-                credentialNames.add(reusableCredentialNames.get(i));
+            String name = reusableCredentialNames.get(i);
+            if (name.toLowerCase().contains(query.toLowerCase())) {
+                credentialNames.add(name);
                 filteredIndices.add(i);  // Store the original index
             }
         }
@@ -123,7 +143,7 @@ public class CredentialListActivity extends AppCompatActivity {
         adapter.notifyDataSetChanged();
     }
 
-    public void resetList() {
+    private void resetList() {
         credentialNames.clear();
         credentialNames.addAll(reusableCredentialNames);
         adapter.notifyDataSetChanged();
@@ -136,25 +156,20 @@ public class CredentialListActivity extends AppCompatActivity {
         awsS3Helper.fetchCredentialList(new AwsS3Helper.S3CredentialFetchListener() {
             @Override
             public void onSuccess(List<String> names, List<String> files) {
-                credentialNames.clear();
-                credentialFiles.clear();
-                credentialNames.addAll(names);
-                credentialFiles.addAll(files);
-
                 runOnUiThread(() -> {
+                    credentialNames.clear();
+                    credentialFiles.clear();
+
+                    credentialNames.addAll(names);
+                    credentialFiles.addAll(files);
+                    reusableCredentialNames.clear();
+                    reusableCredentialNames.addAll(names);
+
                     adapter.notifyDataSetChanged();
                     progressBar.setVisibility(View.GONE);
                     progressText.setVisibility(View.GONE);
 
-                    if (credentialNames.isEmpty()) {
-                        emptyStateImage.setVisibility(View.VISIBLE);
-                        credentialListView.setVisibility(View.GONE);
-                    } else {
-                        reusableCredentialNames.clear();
-                        reusableCredentialNames.addAll(credentialNames);
-                        emptyStateImage.setVisibility(View.GONE);
-                        credentialListView.setVisibility(View.VISIBLE);
-                    }
+                    updateEmptyStateUI(names.isEmpty());
                 });
             }
 
@@ -167,6 +182,11 @@ public class CredentialListActivity extends AppCompatActivity {
                 });
             }
         });
+    }
+
+    private void updateEmptyStateUI(boolean isEmpty) {
+        emptyStateImage.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+        credentialListView.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
     }
 
     @Override
