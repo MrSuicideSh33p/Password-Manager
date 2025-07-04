@@ -1,16 +1,20 @@
 package com.vichu.thevault.models;
 
 public class CredentialData {
-    private String website;
-    private String username;
-    private String password;
-    private String notes;
+    private final String website;
+    private final String username;
+    private final String password;
+    private final String notes;
+    private final String privateKey;
+    private final String salt;
 
-    public CredentialData(String website, String username, String password, String notes) {
+    public CredentialData(String website, String username, String password, String privateKey, String salt, String notes) {
         this.website = website;
         this.username = username;
         this.password = password;
         this.notes = notes;
+        this.privateKey = privateKey;
+        this.salt = salt;
     }
 
     public CredentialData(String content) {
@@ -18,45 +22,39 @@ public class CredentialData {
         this.website = lines[0];
         this.username = lines[1];
         this.password = lines[2];
-        this.notes = lines.length > 3 ? lines[3] : "";
+        this.privateKey = lines[3];
+        this.salt = lines[4];
+        this.notes = lines.length > 5 ? lines[5] : "";
     }
 
     public String getWebsite() {
         return website;
     }
 
-    public void setWebsite(String website) {
-        this.website = website;
-    }
-
     public String getUsername() {
         return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
     }
 
     public String getPassword() {
         return password;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    public String getPrivateKey() {
+        return privateKey;
+    }
+
+    public String getSalt() {
+        return salt;
     }
 
     public String getNotes() {
         return notes;
     }
 
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
-
     /**
      * Converts the credential details into a formatted string for file storage.
      */
     public String toFileFormat() {
-        return website + "\n" + username + "\n" + password + "\n" + notes;
+        return website + "\n" + username + "\n" + password + "\n" + privateKey + "\n" + salt + "\n" + notes;
     }
 }

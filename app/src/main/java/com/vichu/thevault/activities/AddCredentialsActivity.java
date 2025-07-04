@@ -3,6 +3,7 @@ package com.vichu.thevault.activities;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
@@ -14,10 +15,11 @@ import androidx.appcompat.widget.Toolbar;
 import com.vichu.thevault.R;
 import com.vichu.thevault.models.CredentialData;
 import com.vichu.thevault.utils.AwsS3Helper;
+import com.vichu.thevault.utils.EncryptionHelper;
 
 public class AddCredentialsActivity extends AppCompatActivity {
 
-    private EditText websiteInput, usernameInput, passwordInput, notesInput;
+    private EditText websiteInput, usernameInput, passwordInput, privateKeyInput, notesInput;
     private AwsS3Helper awsS3Helper;
 
     @Override
@@ -36,6 +38,7 @@ public class AddCredentialsActivity extends AppCompatActivity {
         websiteInput = findViewById(R.id.et_website);
         usernameInput = findViewById(R.id.et_username);
         passwordInput = findViewById(R.id.et_password);
+        privateKeyInput = findViewById(R.id.et_private_key);
         notesInput = findViewById(R.id.et_notes);
         awsS3Helper = new AwsS3Helper(this);
     }
@@ -89,14 +92,22 @@ public class AddCredentialsActivity extends AppCompatActivity {
         String website = websiteInput.getText().toString().trim();
         String username = usernameInput.getText().toString().trim();
         String password = passwordInput.getText().toString().trim();
+        String privateKey = privateKeyInput.getText().toString().trim();
         String notes = notesInput.getText().toString().trim();
 
-        if (website.isEmpty() || username.isEmpty() || password.isEmpty()) {
+        if (website.isEmpty() || username.isEmpty() || password.isEmpty() || privateKey.isEmpty()) {
             Toast.makeText(AddCredentialsActivity.this, "Please don't leave any fields blank!", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        CredentialData credentialData = new CredentialData(website, username, password, notes);
+        String salt = EncryptionHelper.generateSalt();
+        try {
+            password = EncryptionHelper.encrypt(password, privateKey, salt);
+        } catch (Exception e) {
+            Log.e("EncryptionHelper", "Error encrypting password: " + e.getMessage(), e);
+        }
+
+        CredentialData credentialData = new CredentialData(website, username, password, privateKey, salt, notes);
         String credentialsContent = credentialData.toFileFormat();
         String fileName = "credentials/" + website.replaceAll("\\s+", "_") + "-" + username.replaceAll("\\s", "_") + ".txt"; // Ensure a valid file name
 
@@ -119,6 +130,7 @@ public class AddCredentialsActivity extends AppCompatActivity {
         return !websiteInput.getText().toString().trim().isEmpty() ||
                 !usernameInput.getText().toString().trim().isEmpty() ||
                 !passwordInput.getText().toString().trim().isEmpty() ||
+                !privateKeyInput.getText().toString().trim().isEmpty() ||
                 !notesInput.getText().toString().trim().isEmpty();
     }
 }

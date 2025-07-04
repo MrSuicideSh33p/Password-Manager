@@ -3,9 +3,12 @@ package com.vichu.thevault.activities;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.InputType;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -15,6 +18,7 @@ import androidx.appcompat.widget.Toolbar;
 import com.vichu.thevault.R;
 import com.vichu.thevault.models.CredentialData;
 import com.vichu.thevault.utils.AwsS3Helper;
+import com.vichu.thevault.utils.EncryptionHelper;
 
 import java.util.Objects;
 
@@ -22,9 +26,9 @@ public class CredentialDetailsActivity extends AppCompatActivity {
 
     private EditText websiteText, usernameText, passwordText, notesText;
     private AwsS3Helper awsS3Helper;
-    private String credentialFile;
+    private String credentialFile, encryptedPassword, privateKey, salt;
     private boolean isEditing = false;
-    private MenuItem saveMenuItem, editMenuItem;
+    private MenuItem saveMenuItem, editMenuItem, encrypt_credential, decrypt_credential;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +66,9 @@ public class CredentialDetailsActivity extends AppCompatActivity {
                     usernameText.setText(credentialData.getUsername());
                     passwordText.setText(credentialData.getPassword());
                     notesText.setText(credentialData.getNotes());
+                    encryptedPassword = credentialData.getPassword();
+                    privateKey = credentialData.getPrivateKey();
+                    salt = credentialData.getSalt();
                 });
             }
         });
@@ -70,6 +77,7 @@ public class CredentialDetailsActivity extends AppCompatActivity {
     private void setEditingEnabled(boolean enabled) {
         websiteText.setEnabled(enabled);
         usernameText.setEnabled(enabled);
+        passwordText.setText(encryptedPassword);
         passwordText.setEnabled(enabled);
         notesText.setEnabled(enabled);
         isEditing = enabled;
@@ -77,7 +85,11 @@ public class CredentialDetailsActivity extends AppCompatActivity {
             saveMenuItem.setVisible(enabled);
         }
         if (editMenuItem != null) {
-            editMenuItem.setVisible(enabled ? false : true);
+            editMenuItem.setVisible(!enabled);
+        }
+        if (editMenuItem != null) {
+            encrypt_credential.setVisible(false);
+            decrypt_credential.setVisible(!enabled);
         }
     }
 
@@ -85,9 +97,13 @@ public class CredentialDetailsActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.credential_details_menu, menu);
         saveMenuItem = menu.findItem(R.id.save_credential);
-        editMenuItem = menu.findItem(R.id.edit_credential);
         saveMenuItem.setVisible(false); // Hide save initially
+        editMenuItem = menu.findItem(R.id.edit_credential);
         editMenuItem.setVisible(true);
+        decrypt_credential = menu.findItem(R.id.decrypt_credential);
+        decrypt_credential.setVisible(true);
+        encrypt_credential = menu.findItem(R.id.encrypt_credential);
+        encrypt_credential.setVisible(false);
         return true;
     }
 
@@ -99,11 +115,53 @@ public class CredentialDetailsActivity extends AppCompatActivity {
         } else if (item.getItemId() == R.id.save_credential) {
             saveCredential();
             return true;
+        } else if (item.getItemId() == R.id.decrypt_credential) {
+            decryptCredential();
+            return true;
+        } else if (item.getItemId() == R.id.encrypt_credential) {
+            showEncCredential();
+            return true;
         } else if (item.getItemId() == R.id.delete_credential) {
             confirmDelete();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void showEncCredential() {
+        TextView passwordField = findViewById(R.id.passwordText);
+        passwordField.setText(encryptedPassword);
+        decrypt_credential.setVisible(true);
+        encrypt_credential.setVisible(false);
+    }
+
+    private void decryptCredential() {
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Verification")
+                .setMessage("Kindly enter your private key")
+                .setView(input)
+                .setPositiveButton("Decrypt", (dialog, which) -> {
+                    String privateKeyInput = input.getText().toString().trim();
+                    if (!privateKeyInput.isEmpty()) {
+                        try {
+                            String decryptedPassword = EncryptionHelper.decrypt(encryptedPassword, privateKeyInput, salt);
+                            //Update TextView without updating actual value
+                            TextView passwordField = findViewById(R.id.passwordText);
+                            passwordField.setText(decryptedPassword);
+                            decrypt_credential.setVisible(false);
+                            encrypt_credential.setVisible(true);
+                        } catch (Exception e) {
+                            Toast.makeText(this, "Decryption failed. Invalid key!", Toast.LENGTH_LONG).show();
+                        }
+                    } else {
+                        Toast.makeText(this, "Private key cannot be empty!", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void confirmDelete() {
@@ -138,25 +196,73 @@ public class CredentialDetailsActivity extends AppCompatActivity {
             return;
         }
 
-        CredentialData updatedCredential = new CredentialData(newWebsite, newUsername, newPassword, newNotes);
-        String updatedFileContent = updatedCredential.toFileFormat();
+        checkAndUpdatePassword(newPassword, finalPassword -> {
+            if (finalPassword == null) {
+                Toast.makeText(this, "Password not updated. Verification failed or cancelled.", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-        awsS3Helper.uploadCredentials(credentialFile, updatedFileContent, (success) -> {
-            runOnUiThread(() -> {
-                if (success) {
-                    Toast.makeText(this, "Credential updated", Toast.LENGTH_SHORT).show();
-                    setEditingEnabled(false);
+            CredentialData updatedCredential = new CredentialData(
+                    newWebsite, newUsername, finalPassword, privateKey, salt, newNotes
+            );
+            String updatedFileContent = updatedCredential.toFileFormat();
 
-                    // Redirect back to CredentialListActivity
-                    Intent intent = new Intent(this, CredentialListActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                    startActivity(intent);
-                    finish();
-                } else {
-                    Toast.makeText(this, "Update failed", Toast.LENGTH_SHORT).show();
-                }
+            awsS3Helper.uploadCredentials(credentialFile, updatedFileContent, (success) -> {
+                runOnUiThread(() -> {
+                    if (success) {
+                        Toast.makeText(this, "Credential updated", Toast.LENGTH_SHORT).show();
+                        setEditingEnabled(false);
+                        Intent intent = new Intent(this, CredentialListActivity.class);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                        startActivity(intent);
+                        finish();
+                    } else {
+                        Toast.makeText(this, "Update failed", Toast.LENGTH_SHORT).show();
+                    }
+                });
             });
         });
+    }
+
+    private void checkAndUpdatePassword(String newPassword, PasswordCallback callback) {
+        if (!newPassword.equals(encryptedPassword)) {
+            final EditText input = new EditText(this);
+            input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+
+            new AlertDialog.Builder(this)
+                    .setTitle("Verification")
+                    .setMessage("Kindly enter your private key for confirmation")
+                    .setView(input)
+                    .setPositiveButton("Verify", (dialog, which) -> {
+                        String privateKeyInput = input.getText().toString().trim();
+                        if (!privateKeyInput.isEmpty()) {
+                            if (!privateKeyInput.equals(privateKey)) {
+                                Toast.makeText(this, "Encryption failed. Invalid key!", Toast.LENGTH_LONG).show();
+                                callback.onPasswordReady(null);
+                            } else {
+                                try {
+                                    String encrypted = EncryptionHelper.encrypt(newPassword, privateKey, salt);
+                                    encryptedPassword = encrypted;
+                                    callback.onPasswordReady(encrypted);
+                                } catch (Exception e) {
+                                    Log.e("EncryptionHelper", "Encryption error: " + e.getMessage(), e);
+                                    callback.onPasswordReady(null);
+                                }
+                            }
+                        } else {
+                            Toast.makeText(this, "Private key cannot be empty!", Toast.LENGTH_SHORT).show();
+                            callback.onPasswordReady(null);
+                        }
+                    })
+                    .setNegativeButton("Cancel", (dialog, which) -> callback.onPasswordReady(null))
+                    .show();
+        } else {
+            callback.onPasswordReady(newPassword);
+        }
+    }
+
+    interface PasswordCallback {
+        void onPasswordReady(String finalPassword);
     }
 
 }
