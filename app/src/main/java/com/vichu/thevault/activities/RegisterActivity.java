@@ -1,8 +1,8 @@
 package com.vichu.thevault.activities;
 
 import static com.vichu.thevault.utils.HelperUtils.USERS_JSON;
-import static com.vichu.thevault.utils.HelperUtils.showToast;
 import static com.vichu.thevault.utils.HelperUtils.getUserFolder;
+import static com.vichu.thevault.utils.HelperUtils.showToast;
 
 import android.content.Intent;
 import android.os.Bundle;

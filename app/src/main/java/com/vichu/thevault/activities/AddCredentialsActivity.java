@@ -146,6 +146,7 @@ public class AddCredentialsActivity extends AppCompatActivity {
     private void navigateToMain() {
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        intent.putExtra("user", user);
         startActivity(intent);
         finish();
     }
