@@ -1,5 +1,9 @@
 package com.vichu.thevault.utils;
 
+import static com.vichu.thevault.utils.HelperUtils.USERS_JSON;
+import static com.vichu.thevault.utils.HelperUtils.getMetadataFile;
+import static com.vichu.thevault.utils.HelperUtils.getUserFolder;
+
 import android.content.Context;
 import android.util.Log;
 
@@ -16,6 +20,7 @@ import com.amazonaws.services.s3.model.DeleteObjectRequest;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.vichu.thevault.R;
@@ -71,7 +76,7 @@ public class AwsS3Helper {
         }
     }
 
-    public void uploadCredentials(String fileName, String fileContent, UploadListener listener) {
+    public void uploadCredentials(String fileName, String user, String fileContent, UploadListener listener) {
         new Thread(() -> {
             try {
                 if (fileName == null || fileName.isEmpty()) {
@@ -89,7 +94,7 @@ public class AwsS3Helper {
                 // Extract credential name from fileContent
                 String websiteName = extractWebsiteName(fileContent);
                 // Update metadata file
-                updateMetadataFile(fileName, websiteName);
+                updateMetadataFile(user, fileName, websiteName);
 
                 listener.onSuccess(true);
             } catch (AmazonServiceException e) {
@@ -113,13 +118,13 @@ public class AwsS3Helper {
     }
 
     // Update metadata.json
-    private void updateMetadataFile(String fileName, String websiteName) {
-        String metadataKey = "credentials/metadata.json";
+    private void updateMetadataFile(String user, String fileName, String websiteName) {
 
         try {
             // Check if metadata.json exists
             S3Object metadataObject;
             String existingMetadataJson = "{}"; // Default empty JSON
+            String metadataKey = getMetadataFile(user);
 
             try {
                 metadataObject = s3Client.getObject(BUCKET_NAME, metadataKey);
@@ -150,14 +155,72 @@ public class AwsS3Helper {
         }
     }
 
-    public void fetchCredentialList(S3CredentialFetchListener listener) {
+    // Create folder for user and update user.json
+    //TODO check if this can also use fileContent and toFileFormat from model class
+    public void registerUser(String userFile, String userFolder, String username, String password, CreateListener listener) {
+        new Thread(() -> {
+            try {
+                // Check if user.json exists
+                S3Object userObject;
+                String existingUserJson = "{}"; // Default empty JSON
+
+                try {
+                    userObject = s3Client.getObject(BUCKET_NAME, userFile);
+                    existingUserJson = new String(userObject.getObjectContent().readAllBytes(), StandardCharsets.UTF_8);
+                    Log.d("S3_USER", "Existing user.json loaded successfully.");
+                } catch (AmazonS3Exception e) {
+                    if (e.getStatusCode() == 404) {
+                        Log.w("S3_USER", "User.json file not found. Creating a new one.");
+                    } else {
+                        listener.onSuccess(false);
+                        throw e;
+                    }
+                }
+
+                // Convert existing user to JSON object
+                JSONObject userJson = new JSONObject(existingUserJson);
+                userJson.put(username, password);
+
+                // Upload updated user.json
+                InputStream updatedUserStream = new ByteArrayInputStream(userJson.toString().getBytes(StandardCharsets.UTF_8));
+                ObjectMetadata userMetadata = new ObjectMetadata();
+                userMetadata.setContentLength(userJson.toString().length());
+
+                s3Client.putObject(BUCKET_NAME, userFile, updatedUserStream, userMetadata);
+                Log.d("S3_USER", "User.json file updated successfully.");
+
+                try {
+                    //Create user folder
+                    ObjectMetadata userFolderMetadata = new ObjectMetadata();
+                    userFolderMetadata.setContentLength(0L);
+
+                    InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+                    PutObjectRequest putObjectRequest = new PutObjectRequest(BUCKET_NAME,
+                            userFolder, inputStream, userFolderMetadata);
+
+                    s3Client.putObject(putObjectRequest);
+                    Log.d("S3_USER", "User folder successfully created.");
+                    listener.onSuccess(true);
+                } catch (Exception e) {
+                    Log.e("S3_USER", "Failed to create user folder:" + e.getMessage());
+                    listener.onSuccess(false);
+                }
+            } catch (Exception e) {
+                Log.e("S3_USER", "Failed to update user.json file:" + e.getMessage());
+                listener.onSuccess(false);
+            }
+        }).start();
+    }
+
+    public void fetchCredentialList(String user, S3CredentialFetchListener listener) {
         new Thread(() -> {
             try {
                 Map<String, String> metadataMap = new HashMap<>();
+                String metadataFile = getMetadataFile(user);
 
                 // Try fetching metadata.json
                 try {
-                    S3Object metadataObject = s3Client.getObject(BUCKET_NAME, "credentials/metadata.json");
+                    S3Object metadataObject = s3Client.getObject(BUCKET_NAME, metadataFile);
                     InputStream metadataStream = metadataObject.getObjectContent();
                     BufferedReader reader = new BufferedReader(new InputStreamReader(metadataStream));
 
@@ -182,7 +245,7 @@ public class AwsS3Helper {
                 }
 
                 // Fetch all credential files from S3
-                ListObjectsRequest listObjectsRequest = new ListObjectsRequest().withBucketName(BUCKET_NAME).withPrefix("credentials/");
+                ListObjectsRequest listObjectsRequest = new ListObjectsRequest().withBucketName(BUCKET_NAME).withPrefix(getUserFolder(user));
                 ObjectListing objectListing = s3Client.listObjects(listObjectsRequest);
                 List<String> names = new ArrayList<>();
                 List<String> files = new ArrayList<>();
@@ -190,8 +253,9 @@ public class AwsS3Helper {
                 for (S3ObjectSummary objectSummary : objectListing.getObjectSummaries()) {
                     String fileName = objectSummary.getKey();
 
-                    // Ignore metadata.json itself
-                    if (fileName.equals("credentials/metadata.json")) continue;
+                    // Ignore json files and folder itself
+                    if (fileName.equals(metadataFile) || fileName.equals(USERS_JSON) || fileName.endsWith("/"))
+                        continue;
 
                     files.add(fileName);
 
@@ -232,6 +296,31 @@ public class AwsS3Helper {
         }).start();
     }
 
+    public void fetchUserDetails(String fileName, UserDataListener listener) {
+        new Thread(() -> {
+            try {
+                boolean bool = s3Client.doesObjectExist(BUCKET_NAME, fileName);
+                if (!bool) {
+                    listener.onResult(null, null);
+                    return;
+                }
+                S3Object s3Object = s3Client.getObject(BUCKET_NAME, fileName);
+                InputStream inputStream = s3Object.getObjectContent();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+                StringBuilder content = new StringBuilder();
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    content.append(line);
+                }
+                reader.close();
+                listener.onResult(new JSONObject(content.toString()), null);
+            } catch (Exception e) {
+                listener.onResult(null, e.getMessage());
+            }
+        }).start();
+    }
+
     public void deleteCredential(String fileName, DeleteListener listener) {
         new Thread(() -> {
             try {
@@ -254,6 +343,14 @@ public class AwsS3Helper {
 
     public interface CredentialDataListener {
         void onResult(CredentialData credentialData, String errorMessage);
+    }
+
+    public interface UserDataListener {
+        void onResult(JSONObject userDataList, String errorMessage);
+    }
+
+    public interface CreateListener {
+        void onSuccess(boolean success);
     }
 
     public interface DeleteListener {

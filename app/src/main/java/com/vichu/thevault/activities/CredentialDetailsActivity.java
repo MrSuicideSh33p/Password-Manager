@@ -1,5 +1,8 @@
 package com.vichu.thevault.activities;
 
+import static com.vichu.thevault.utils.HelperUtils.getMetadataFile;
+import static com.vichu.thevault.utils.HelperUtils.showToast;
+
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
@@ -8,8 +11,6 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -31,6 +32,7 @@ public class CredentialDetailsActivity extends AppCompatActivity {
     private String encryptedPassword;
     private String privateKey;
     private String salt;
+    private String user;
 
     private boolean isEditing = false;
 
@@ -48,6 +50,7 @@ public class CredentialDetailsActivity extends AppCompatActivity {
         initToolbar();
 
         credentialFile = getIntent().getStringExtra("credentialFile");
+        user = getIntent().getStringExtra("user");
         awsS3Helper = new AwsS3Helper(this);
 
         loadCredentialDetails();
@@ -72,7 +75,7 @@ public class CredentialDetailsActivity extends AppCompatActivity {
         awsS3Helper.fetchCredentialDetails(credentialFile, (credentialData, errorMessage) -> {
             runOnUiThread(() -> {
                 if (errorMessage != null) {
-                    showToast("Error: " + errorMessage);
+                    showToast(this, "Error: " + errorMessage);
                     return;
                 }
 
@@ -157,7 +160,7 @@ public class CredentialDetailsActivity extends AppCompatActivity {
                 .setPositiveButton("Decrypt", (dialog, which) -> {
                     String keyInput = input.getText().toString().trim();
                     if (keyInput.isEmpty()) {
-                        showToast("Private key cannot be empty!");
+                        showToast(this, "Private key cannot be empty!");
                         return;
                     }
 
@@ -167,7 +170,7 @@ public class CredentialDetailsActivity extends AppCompatActivity {
                         decryptCredentialItem.setVisible(false);
                         encryptCredentialItem.setVisible(true);
                     } catch (Exception e) {
-                        showToast("Decryption failed. Invalid key!");
+                        showToast(this, "Decryption failed. Invalid key!");
                     }
                 })
                 .setNegativeButton("Cancel", null)
@@ -187,7 +190,7 @@ public class CredentialDetailsActivity extends AppCompatActivity {
         awsS3Helper.deleteCredential(credentialFile, success -> {
             if (success) {
                 runOnUiThread(() -> {
-                    showToast("Credential deleted");
+                    showToast(this, "Credential deleted");
                     setResult(RESULT_OK);
                     finish();
                 });
@@ -202,13 +205,13 @@ public class CredentialDetailsActivity extends AppCompatActivity {
         String newNotes = notesText.getText().toString().trim();
 
         if (newWebsite.isEmpty() || newUsername.isEmpty() || newPassword.isEmpty()) {
-            showToast("All fields are required!");
+            showToast(this, "All fields are required!");
             return;
         }
 
         checkAndUpdatePassword(newPassword, finalPassword -> {
             if (finalPassword == null) {
-                showToast("Password not updated. Verification failed or cancelled.");
+                showToast(this, "Password not updated. Verification failed or cancelled.");
                 return;
             }
 
@@ -216,16 +219,16 @@ public class CredentialDetailsActivity extends AppCompatActivity {
                     newWebsite, newUsername, finalPassword, privateKey, salt, newNotes
             );
 
-            awsS3Helper.uploadCredentials(credentialFile, updatedCredential.toFileFormat(), success -> {
+            awsS3Helper.uploadCredentials(credentialFile, getMetadataFile(user), updatedCredential.toFileFormat(), success -> {
                 runOnUiThread(() -> {
                     if (success) {
-                        showToast("Credential updated");
+                        showToast(this, "Credential updated");
                         setEditingEnabled(false);
                         startActivity(new Intent(this, CredentialListActivity.class)
                                 .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP));
                         finish();
                     } else {
-                        showToast("Update failed");
+                        showToast(this, "Update failed");
                     }
                 });
             });
@@ -248,13 +251,13 @@ public class CredentialDetailsActivity extends AppCompatActivity {
                 .setPositiveButton("Verify", (dialog, which) -> {
                     String keyInput = input.getText().toString().trim();
                     if (keyInput.isEmpty()) {
-                        showToast("Private key cannot be empty!");
+                        showToast(this, "Private key cannot be empty!");
                         callback.onPasswordReady(null);
                         return;
                     }
 
                     if (!keyInput.equals(privateKey)) {
-                        showToast("Encryption failed. Invalid key!");
+                        showToast(this, "Encryption failed. Invalid key!");
                         callback.onPasswordReady(null);
                         return;
                     }
@@ -269,10 +272,6 @@ public class CredentialDetailsActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("Cancel", (dialog, which) -> callback.onPasswordReady(null))
                 .show();
-    }
-
-    private void showToast(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
     interface PasswordCallback {

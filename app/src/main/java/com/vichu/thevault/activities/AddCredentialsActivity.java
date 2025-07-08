@@ -1,5 +1,9 @@
 package com.vichu.thevault.activities;
 
+import static com.vichu.thevault.utils.HelperUtils.getMetadataFile;
+import static com.vichu.thevault.utils.HelperUtils.showToast;
+import static com.vichu.thevault.utils.HelperUtils.getUserFolder;
+
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
@@ -7,7 +11,6 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -21,11 +24,15 @@ public class AddCredentialsActivity extends AppCompatActivity {
 
     private EditText websiteInput, usernameInput, passwordInput, privateKeyInput, notesInput;
     private AwsS3Helper awsS3Helper;
+    private String user;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_credentials);
+
+        Intent intent = getIntent();
+        user = intent.getStringExtra("user");
 
         initViews();
         initToolbar();
@@ -95,7 +102,7 @@ public class AddCredentialsActivity extends AppCompatActivity {
         String notes = notesInput.getText().toString().trim();
 
         if (website.isEmpty() || username.isEmpty() || password.isEmpty() || privateKey.isEmpty()) {
-            showToast("Please don't leave any fields blank!");
+            showToast(this, "Please don't leave any fields blank!");
             return;
         }
 
@@ -105,7 +112,7 @@ public class AddCredentialsActivity extends AppCompatActivity {
             encryptedPassword = EncryptionHelper.encrypt(password, privateKey, salt);
         } catch (Exception e) {
             Log.e("EncryptionHelper", "Error encrypting password", e);
-            showToast("Encryption failed. Please try again.");
+            showToast(this, "Encryption failed. Please try again.");
             return;
         }
 
@@ -113,12 +120,12 @@ public class AddCredentialsActivity extends AppCompatActivity {
         String fileContent = credentialData.toFileFormat();
         String fileName = buildFileName(website, username);
 
-        awsS3Helper.uploadCredentials(fileName, fileContent, success -> runOnUiThread(() -> {
+        awsS3Helper.uploadCredentials(fileName, user, fileContent, success -> runOnUiThread(() -> {
             if (success) {
-                showToast("Credentials successfully saved!");
+                showToast(this, "Credentials successfully saved!");
                 navigateToMain();
             } else {
-                showToast("Failed to save credentials!");
+                showToast(this, "Failed to save credentials!");
             }
         }));
     }
@@ -131,13 +138,9 @@ public class AddCredentialsActivity extends AppCompatActivity {
                 !notesInput.getText().toString().trim().isEmpty();
     }
 
-    private void showToast(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-    }
-
     private String buildFileName(String website, String username) {
-        return "credentials/" + website.replaceAll("\\s+", "_") +
-                "-" +username.replaceAll("\\s+", "_") + ".txt";
+        return getUserFolder(user) + website.replaceAll("\\s+", "_") +
+                "-" + username.replaceAll("\\s+", "_") + ".txt";
     }
 
     private void navigateToMain() {

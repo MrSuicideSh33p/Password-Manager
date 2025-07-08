@@ -19,4 +19,5 @@
     <color name="lightGray">#F5F5F5</color>
     <color name="lightBlue">#E3F2FD</color>
     <color name="darkGray">#424242</color>
+    <color name="primary_blue">#3B84F1</color>
 </resources>

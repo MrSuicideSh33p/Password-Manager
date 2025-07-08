@@ -42,11 +42,15 @@ public class CredentialListActivity extends AppCompatActivity {
     private final List<Integer> filteredIndices = new ArrayList<>();
 
     private AwsS3Helper awsS3Helper;
+    private String user;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_credential_list);
+
+        Intent intent = getIntent();
+        user = intent.getStringExtra("user");
 
         initViews();
         initToolbar();
@@ -80,6 +84,7 @@ public class CredentialListActivity extends AppCompatActivity {
 
             Intent intent = new Intent(this, CredentialDetailsActivity.class);
             intent.putExtra("credentialFile", selectedFile);
+            intent.putExtra("user", user);
             startActivityForResult(intent, REQUEST_CODE_CREDENTIAL_DETAILS);
         });
     }
@@ -153,7 +158,7 @@ public class CredentialListActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
         progressText.setVisibility(View.VISIBLE);
 
-        awsS3Helper.fetchCredentialList(new AwsS3Helper.S3CredentialFetchListener() {
+        awsS3Helper.fetchCredentialList(user, new AwsS3Helper.S3CredentialFetchListener() {
             @Override
             public void onSuccess(List<String> names, List<String> files) {
                 runOnUiThread(() -> {
