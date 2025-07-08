@@ -1,0 +1,21 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group android:checkableBehavior="single">
+
+        <item
+            android:id="@+id/nav_profile"
+            android:icon="@drawable/ic_account_circle"
+            android:title="My Profile" />
+
+        <item
+            android:id="@+id/nav_add_credentials"
+            android:icon="@drawable/ic_add_credential"
+            android:title="Add Credential" />
+
+        <item
+            android:id="@+id/nav_view_credentials"
+            android:icon="@drawable/ic_view_credentials"
+            android:title="View Credentials" />
+    </group>
+
+</menu>

@@ -9,14 +9,20 @@ import android.view.MenuItem;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 
+import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
-
 import com.vichu.thevault.R;
 
 public class MainActivity extends AppCompatActivity {
+
+    private DrawerLayout drawerLayout;
+    private ActionBarDrawerToggle toggle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,6 +44,29 @@ public class MainActivity extends AppCompatActivity {
 
         LinearLayout viewCredentialSection = findViewById(R.id.view_credentials_section);
         viewCredentialSection.setOnClickListener(v -> openViewCredentialsScreen(username));
+
+        // Initialize DrawerLayout and NavigationView
+        drawerLayout = findViewById(R.id.drawer_layout);
+        NavigationView navigationView = findViewById(R.id.nav_view);
+
+        // Setup the Drawer Toggle
+        toggle = new ActionBarDrawerToggle(this, drawerLayout, toolbar,
+                R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+
+        // Handle Navigation Drawer Clicks
+        navigationView.setNavigationItemSelectedListener(item -> {
+            if (item.getItemId() == R.id.nav_add_credentials) {
+                openAddCredentialsScreen(username);
+            } else if (item.getItemId() == R.id.nav_view_credentials) {
+                openViewCredentialsScreen(username);
+            } else if (item.getItemId() == R.id.nav_profile) {
+                openProfileScreen(username);
+            }
+            drawerLayout.closeDrawer(GravityCompat.START);
+            return true;
+        });
     }
 
     private void openAddCredentialsScreen(String username) {
@@ -48,6 +77,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void openViewCredentialsScreen(String username) {
         Intent intent = new Intent(this, CredentialListActivity.class);
+        intent.putExtra("user", username);
+        startActivity(intent);
+    }
+
+    private void openProfileScreen(String username) {
+        Intent intent = new Intent(this, ProfileActivity.class);
         intent.putExtra("user", username);
         startActivity(intent);
     }
