@@ -1,10 +1,12 @@
 package com.vichu.thevault.activities;
 
+import static com.vichu.thevault.utils.HelperUtils.TAG;
 import static com.vichu.thevault.utils.HelperUtils.USERS_JSON;
 import static com.vichu.thevault.utils.HelperUtils.showToast;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 
@@ -66,12 +68,12 @@ public class LoginActivity extends AppCompatActivity {
                         showToast(this, "Incorrect credentials!");
                     }
                 } catch (JSONException e) {
-                    throw new RuntimeException(e);
+                    Log.e(TAG, "Error parsing user.json content: " + e.getMessage());
+                    showToast(this, "Internal server error!");
                 }
             }));
         });
 
-        Button registerButton = findViewById(R.id.register_btn);
         registerButton.setOnClickListener(v -> openRegisterActivityScreen());
     }
 

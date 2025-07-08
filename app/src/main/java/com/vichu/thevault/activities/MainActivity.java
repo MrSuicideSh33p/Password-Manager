@@ -12,6 +12,8 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
+import com.google.android.material.snackbar.Snackbar;
+
 import com.vichu.thevault.R;
 
 public class MainActivity extends AppCompatActivity {
@@ -60,7 +62,9 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_logout) {
-            logout();
+            Snackbar.make(findViewById(android.R.id.content), "Are you sure you want to logout?", Snackbar.LENGTH_LONG)
+                    .setAction("Logout", v -> logout())
+                    .show();
             return true;
         }
         return super.onOptionsItemSelected(item);

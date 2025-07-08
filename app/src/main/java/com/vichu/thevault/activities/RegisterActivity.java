@@ -37,9 +37,9 @@ public class RegisterActivity extends AppCompatActivity {
 
         registerButton.setOnClickListener(v -> {
 
-            String username = usernameInput.getText().toString();
-            String password = passwordInput.getText().toString();
-            String confirmPassword = confirmPasswordInput.getText().toString();
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString().trim();
+            String confirmPassword = confirmPasswordInput.getText().toString().trim();
 
             if (username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
                 showToast(this, "Please don't leave any fields blank!");
@@ -48,6 +48,11 @@ public class RegisterActivity extends AppCompatActivity {
 
             if (!password.equals(confirmPassword)) {
                 showToast(this, "The passwords do not match!");
+                return;
+            }
+
+            if (password.length() < 8) {
+                showToast(this, "Password must be at least 8 characters!");
                 return;
             }
 

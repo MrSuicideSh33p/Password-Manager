@@ -106,17 +106,22 @@ public class AddCredentialsActivity extends AppCompatActivity {
             return;
         }
 
+        if (lengthTooHigh(website) || lengthTooHigh(username) || lengthTooHigh(password) || lengthTooHigh(privateKey)) {
+            showToast(this, "Ensure no field except notes is over 100 characters!");
+            return;
+        }
+
         String salt = EncryptionHelper.generateSalt();
-        String encryptedPassword;
+        String currentPasswordCiphertext;
         try {
-            encryptedPassword = EncryptionHelper.encrypt(password, privateKey, salt);
+            currentPasswordCiphertext = EncryptionHelper.encrypt(password, privateKey, salt);
         } catch (Exception e) {
             Log.e("EncryptionHelper", "Error encrypting password", e);
             showToast(this, "Encryption failed. Please try again.");
             return;
         }
 
-        CredentialData credentialData = new CredentialData(website, username, encryptedPassword, privateKey, salt, notes);
+        CredentialData credentialData = new CredentialData(website, username, currentPasswordCiphertext, privateKey, salt, notes);
         String fileContent = credentialData.toFileFormat();
         String fileName = buildFileName(website, username);
 
@@ -128,6 +133,10 @@ public class AddCredentialsActivity extends AppCompatActivity {
                 showToast(this, "Failed to save credentials!");
             }
         }));
+    }
+
+    private boolean lengthTooHigh(String field) {
+        return field.length() > 100;
     }
 
     private boolean isAnyFieldFilled() {
