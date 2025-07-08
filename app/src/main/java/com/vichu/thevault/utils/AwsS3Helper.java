@@ -1,8 +1,12 @@
 package com.vichu.thevault.utils;
 
+import static com.vichu.thevault.utils.HelperUtils.BUCKET_NAME;
+import static com.vichu.thevault.utils.HelperUtils.ENDPOINT;
+import static com.vichu.thevault.utils.HelperUtils.TAG;
 import static com.vichu.thevault.utils.HelperUtils.USERS_JSON;
 import static com.vichu.thevault.utils.HelperUtils.getMetadataFile;
 import static com.vichu.thevault.utils.HelperUtils.getUserFolder;
+import static com.vichu.thevault.utils.HelperUtils.readInputStream;
 
 import android.content.Context;
 import android.util.Log;
@@ -29,10 +33,8 @@ import com.vichu.thevault.models.CredentialData;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,12 +42,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class AwsS3Helper {
 
-    private static final String TAG = "AwsS3Helper";
-    private static final String BUCKET_NAME = "the-vault-bucket";
-    private static final String ENDPOINT = "s3.us-east-1.amazonaws.com";
+    private static final ExecutorService executor = Executors.newCachedThreadPool();
 
     private AmazonS3 s3Client;
     public AwsS3Helper(Context context) {
@@ -77,7 +79,7 @@ public class AwsS3Helper {
     }
 
     public void uploadCredentials(String fileName, String user, String fileContent, UploadListener listener) {
-        new Thread(() -> {
+        executor.execute(() -> {
             try {
                 if (fileName == null || fileName.isEmpty()) {
                     throw new IllegalArgumentException("Filename cannot be null or empty");
@@ -110,7 +112,7 @@ public class AwsS3Helper {
                 Log.e("S3_UPLOAD", "Unexpected error: " + e.getMessage());
                 listener.onSuccess(false);
             }
-        }).start();
+        });
     }
 
     private String extractWebsiteName(String fileContent) {
@@ -122,12 +124,10 @@ public class AwsS3Helper {
 
         try {
             // Check if metadata.json exists
-            S3Object metadataObject;
             String existingMetadataJson = "{}"; // Default empty JSON
             String metadataKey = getMetadataFile(user);
 
-            try {
-                metadataObject = s3Client.getObject(BUCKET_NAME, metadataKey);
+            try (S3Object metadataObject = s3Client.getObject(BUCKET_NAME, metadataKey)) {
                 existingMetadataJson = new String(metadataObject.getObjectContent().readAllBytes(), StandardCharsets.UTF_8);
                 Log.d("S3_METADATA", "Existing metadata loaded successfully.");
             } catch (AmazonS3Exception e) {
@@ -158,14 +158,12 @@ public class AwsS3Helper {
     // Create folder for user and update user.json
     //TODO check if this can also use fileContent and toFileFormat from model class
     public void registerUser(String userFile, String userFolder, String username, String password, CreateListener listener) {
-        new Thread(() -> {
+        executor.execute(() -> {
             try {
                 // Check if user.json exists
-                S3Object userObject;
                 String existingUserJson = "{}"; // Default empty JSON
 
-                try {
-                    userObject = s3Client.getObject(BUCKET_NAME, userFile);
+                try(S3Object userObject = s3Client.getObject(BUCKET_NAME, userFile)) {
                     existingUserJson = new String(userObject.getObjectContent().readAllBytes(), StandardCharsets.UTF_8);
                     Log.d("S3_USER", "Existing user.json loaded successfully.");
                 } catch (AmazonS3Exception e) {
@@ -209,30 +207,20 @@ public class AwsS3Helper {
                 Log.e("S3_USER", "Failed to update user.json file:" + e.getMessage());
                 listener.onSuccess(false);
             }
-        }).start();
+        });
     }
 
     public void fetchCredentialList(String user, S3CredentialFetchListener listener) {
-        new Thread(() -> {
+        executor.execute(() -> {
             try {
                 Map<String, String> metadataMap = new HashMap<>();
                 String metadataFile = getMetadataFile(user);
 
                 // Try fetching metadata.json
-                try {
-                    S3Object metadataObject = s3Client.getObject(BUCKET_NAME, metadataFile);
-                    InputStream metadataStream = metadataObject.getObjectContent();
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(metadataStream));
-
-                    StringBuilder jsonBuilder = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        jsonBuilder.append(line);
-                    }
-                    reader.close();
-
+                try (S3Object metadataObject = s3Client.getObject(BUCKET_NAME, metadataFile)) {
+                    String jsonString = readInputStream(metadataObject.getObjectContent());
                     // Convert JSON to Map
-                    JSONObject metadataJson = new JSONObject(jsonBuilder.toString());
+                    JSONObject metadataJson = new JSONObject(jsonString);
                     for (Iterator<String> it = metadataJson.keys(); it.hasNext(); ) {
                         String key = it.next();
                         metadataMap.put(key, metadataJson.getString(key));
@@ -273,31 +261,23 @@ public class AwsS3Helper {
                 Log.e(TAG, "Error fetching credentials: " + e.getMessage());
                 listener.onError(e.getMessage());
             }
-        }).start();
+        });
     }
 
     public void fetchCredentialDetails(String fileName, CredentialDataListener listener) {
-        new Thread(() -> {
-            try {
-                S3Object s3Object = s3Client.getObject(BUCKET_NAME, fileName);
-                InputStream inputStream = s3Object.getObjectContent();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                StringBuilder content = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    content.append(line).append("\n");
-                }
-                reader.close();
-                CredentialData credentialData = new CredentialData(content.toString());
+        executor.execute(() -> {
+            try (S3Object s3Object = s3Client.getObject(BUCKET_NAME, fileName)) {
+                String content = readInputStream(s3Object.getObjectContent(), true);
+                CredentialData credentialData = new CredentialData(content);
                 listener.onResult(credentialData, null);
             } catch (Exception e) {
                 listener.onResult(null, e.getMessage());
             }
-        }).start();
+        });
     }
 
     public void fetchUserDetails(String fileName, UserDataListener listener) {
-        new Thread(() -> {
+        executor.execute(() -> {
             try {
                 boolean bool = s3Client.doesObjectExist(BUCKET_NAME, fileName);
                 if (!bool) {
@@ -305,31 +285,24 @@ public class AwsS3Helper {
                     return;
                 }
                 S3Object s3Object = s3Client.getObject(BUCKET_NAME, fileName);
-                InputStream inputStream = s3Object.getObjectContent();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                StringBuilder content = new StringBuilder();
-
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    content.append(line);
-                }
-                reader.close();
-                listener.onResult(new JSONObject(content.toString()), null);
+                String content = readInputStream(s3Object.getObjectContent());
+                s3Object.close();
+                listener.onResult(new JSONObject(content), null);
             } catch (Exception e) {
                 listener.onResult(null, e.getMessage());
             }
-        }).start();
+        });
     }
 
     public void deleteCredential(String fileName, DeleteListener listener) {
-        new Thread(() -> {
+        executor.execute(() -> {
             try {
                 s3Client.deleteObject(new DeleteObjectRequest(BUCKET_NAME, fileName));
                 listener.onSuccess(true);
             } catch (Exception e) {
                 listener.onSuccess(false);
             }
-        }).start();
+        });
     }
 
     public interface UploadListener {

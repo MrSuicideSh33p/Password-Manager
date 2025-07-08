@@ -225,7 +225,8 @@ public class CredentialDetailsActivity extends AppCompatActivity {
                         showToast(this, "Credential updated");
                         setEditingEnabled(false);
                         startActivity(new Intent(this, CredentialListActivity.class)
-                                .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP));
+                                .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                .putExtra("user", user));
                         finish();
                     } else {
                         showToast(this, "Update failed");
