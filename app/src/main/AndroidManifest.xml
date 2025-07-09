@@ -24,6 +24,7 @@
         </activity>
         <activity android:name="com.vichu.thevault.activities.MainActivity"/>
         <activity android:name="com.vichu.thevault.activities.RegisterActivity"/>
+        <activity android:name="com.vichu.thevault.activities.DisplayNameActivity"/>
         <activity android:name="com.vichu.thevault.activities.ResetPasswordActivity"/>
         <activity android:name="com.vichu.thevault.activities.AddCredentialsActivity"/>
         <activity android:name="com.vichu.thevault.activities.CredentialListActivity"/>

@@ -306,7 +306,7 @@ public class AwsS3Helper {
     }
 
     //Update User Details
-    public void updateUserDetails(String username, String password, CreateListener listener) {
+    public void updateUserDetails(String username, String type, String updateString, CreateListener listener) {
         executor.execute(() -> {
             try {
                 String existingUserJson = "{}"; // Default empty JSON
@@ -324,7 +324,14 @@ public class AwsS3Helper {
                 JsonNode jsonNode = objectMapper.readTree(existingUserJson);
                 ObjectNode objectNode = (ObjectNode) jsonNode;
                 ObjectNode userNode = (ObjectNode) objectNode.get(username);
-                userNode.put(PASSWORD_FIELD, password);
+
+                if (type.equals(PASSWORD_FIELD)) {
+                    userNode.put(PASSWORD_FIELD, updateString);
+                } else if (type.equals(DISPLAY_NAME_FIELD)) {
+                    userNode.put(DISPLAY_NAME_FIELD, updateString);
+                } else {
+                    throw new IllegalArgumentException("Invalid update type!");
+                }
                 String updatedJson = objectMapper.writeValueAsString(objectNode);
 
                 // Upload updated user.json

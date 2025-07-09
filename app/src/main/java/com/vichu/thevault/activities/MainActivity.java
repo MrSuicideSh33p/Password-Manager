@@ -1,6 +1,7 @@
 package com.vichu.thevault.activities;
 
-import static com.vichu.thevault.utils.HelperUtils.getWelcomeText;
+import static com.vichu.thevault.utils.HelperUtils.DISPLAY_NAME_FIELD;
+import static com.vichu.thevault.utils.HelperUtils.USERS_JSON;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -18,16 +19,19 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
 import com.vichu.thevault.R;
+import com.vichu.thevault.utils.AwsS3Helper;
 
 public class MainActivity extends AppCompatActivity {
 
     private DrawerLayout drawerLayout;
     private ActionBarDrawerToggle toggle;
+    private AwsS3Helper awsS3Helper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main_activity);
+        awsS3Helper = new AwsS3Helper(this);
 
         // Initialize Toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -35,9 +39,7 @@ public class MainActivity extends AppCompatActivity {
 
         Intent intent = getIntent();
         String username = intent.getStringExtra("user");
-
-        TextView welcomeText = findViewById(R.id.welcome_text);
-        welcomeText.setText(getWelcomeText(username));
+        setWelcomeText(username);
 
         LinearLayout addCredentialSection = findViewById(R.id.add_credentials_section);
         addCredentialSection.setOnClickListener(v -> openAddCredentialsScreen(username));
@@ -59,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
         navigationView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_display_name) {
-                //TODO openSetDisplayNameScreen(username);
+                openSetDisplayNameScreen(username);
             } else if (id == R.id.nav_reset_password) {
                 openResetPasswordScreen(username);
             } else if (id == R.id.nav_add_credentials) {
@@ -70,6 +72,31 @@ public class MainActivity extends AppCompatActivity {
             drawerLayout.closeDrawer(GravityCompat.START);
             return true;
         });
+    }
+
+    private void setWelcomeText(String user) {
+        awsS3Helper.fetchUserDetails(USERS_JSON, (userData, errorMessage) -> runOnUiThread(() -> {
+            String displayName = user;
+            if (errorMessage == null) {
+                String existingDisplayName = userData.get(user).get(DISPLAY_NAME_FIELD).asText(null);
+                if (existingDisplayName != null) {
+                    displayName = existingDisplayName;
+                }
+            }
+
+            TextView welcomeText = findViewById(R.id.welcome_text);
+            welcomeText.setText(new StringBuilder()
+                    .append("Welcome ")
+                    .append(displayName.replaceAll("@.*", ""))
+                    .append("!")
+                    .toString());
+        }));
+    }
+
+    private void openSetDisplayNameScreen(String username) {
+        Intent intent = new Intent(this, DisplayNameActivity.class);
+        intent.putExtra("user", username);
+        startActivity(intent);
     }
 
     private void openResetPasswordScreen(String username) {

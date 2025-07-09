@@ -21,14 +21,6 @@ public class HelperUtils {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
     }
 
-    public static String getWelcomeText(String username) {
-        return new StringBuilder()
-                .append("Welcome ")
-                .append(username.replaceAll("@.*", ""))
-                .append("!")
-                .toString();
-    }
-
     public static String getUserFolder(String username) {
         return new StringBuilder()
                 .append("credentials/")

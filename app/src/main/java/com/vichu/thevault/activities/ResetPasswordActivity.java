@@ -82,7 +82,7 @@ public class ResetPasswordActivity extends AppCompatActivity {
                     return;
                 }
 
-                awsS3Helper.updateUserDetails(user, newPassword, success -> runOnUiThread(() -> {
+                awsS3Helper.updateUserDetails(user, PASSWORD_FIELD, newPassword, success -> runOnUiThread(() -> {
                     if (success) {
                         showToast(this, "Password updated successfully!");
                         progressBar.setVisibility(View.GONE);
