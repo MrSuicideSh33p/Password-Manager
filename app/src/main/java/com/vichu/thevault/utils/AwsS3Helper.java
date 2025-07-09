@@ -157,13 +157,13 @@ public class AwsS3Helper {
 
     // Create folder for user and update user.json
     //TODO check if this can also use fileContent and toFileFormat from model class
-    public void registerUser(String userFile, String userFolder, String username, String password, CreateListener listener) {
+    public void registerUser(String userFolder, String username, String password, CreateListener listener) {
         executor.execute(() -> {
             try {
                 // Check if user.json exists
                 String existingUserJson = "{}"; // Default empty JSON
 
-                try(S3Object userObject = s3Client.getObject(BUCKET_NAME, userFile)) {
+                try(S3Object userObject = s3Client.getObject(BUCKET_NAME, USERS_JSON)) {
                     existingUserJson = new String(userObject.getObjectContent().readAllBytes(), StandardCharsets.UTF_8);
                     Log.d("S3_USER", "Existing user.json loaded successfully.");
                 } catch (AmazonS3Exception e) {
@@ -184,7 +184,7 @@ public class AwsS3Helper {
                 ObjectMetadata userMetadata = new ObjectMetadata();
                 userMetadata.setContentLength(userJson.toString().length());
 
-                s3Client.putObject(BUCKET_NAME, userFile, updatedUserStream, userMetadata);
+                s3Client.putObject(BUCKET_NAME, USERS_JSON, updatedUserStream, userMetadata);
                 Log.d("S3_USER", "User.json file updated successfully.");
 
                 try {
@@ -290,6 +290,39 @@ public class AwsS3Helper {
                 listener.onResult(new JSONObject(content), null);
             } catch (Exception e) {
                 listener.onResult(null, e.getMessage());
+            }
+        });
+    }
+
+    //Update User Details
+    public void updateUserDetails(String username, String password, CreateListener listener) {
+        executor.execute(() -> {
+            try {
+                String existingUserJson = "{}"; // Default empty JSON
+
+                try(S3Object userObject = s3Client.getObject(BUCKET_NAME, USERS_JSON)) {
+                    existingUserJson = new String(userObject.getObjectContent().readAllBytes(), StandardCharsets.UTF_8);
+                    Log.d("S3_USER", "Existing user.json loaded successfully.");
+                } catch (AmazonS3Exception e) {
+                    listener.onSuccess(false);
+                    throw e;
+                }
+
+                // Convert existing user to JSON object
+                JSONObject userJson = new JSONObject(existingUserJson);
+                userJson.put(username, password);
+
+                // Upload updated user.json
+                InputStream updatedUserStream = new ByteArrayInputStream(userJson.toString().getBytes(StandardCharsets.UTF_8));
+                ObjectMetadata userMetadata = new ObjectMetadata();
+                userMetadata.setContentLength(userJson.toString().length());
+
+                s3Client.putObject(BUCKET_NAME, USERS_JSON, updatedUserStream, userMetadata);
+                Log.d("S3_USER", "User.json file updated successfully.");
+                listener.onSuccess(true);
+            } catch (Exception e) {
+                Log.e("S3_USER", "Failed to update user.json file:" + e.getMessage());
+                listener.onSuccess(false);
             }
         });
     }

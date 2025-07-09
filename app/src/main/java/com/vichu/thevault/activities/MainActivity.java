@@ -57,14 +57,25 @@ public class MainActivity extends AppCompatActivity {
 
         // Handle Navigation Drawer Clicks
         navigationView.setNavigationItemSelectedListener(item -> {
-            if (item.getItemId() == R.id.nav_add_credentials) {
+            int id = item.getItemId();
+            if (id == R.id.nav_display_name) {
+                //TODO openSetDisplayNameScreen(username);
+            } else if (id == R.id.nav_reset_password) {
+                openResetPasswordScreen(username);
+            } else if (id == R.id.nav_add_credentials) {
                 openAddCredentialsScreen(username);
-            } else if (item.getItemId() == R.id.nav_view_credentials) {
+            } else if (id == R.id.nav_view_credentials) {
                 openViewCredentialsScreen(username);
             }
             drawerLayout.closeDrawer(GravityCompat.START);
             return true;
         });
+    }
+
+    private void openResetPasswordScreen(String username) {
+        Intent intent = new Intent(this, ResetPasswordActivity.class);
+        intent.putExtra("user", username);
+        startActivity(intent);
     }
 
     private void openAddCredentialsScreen(String username) {

@@ -5,7 +5,18 @@
         <item
             android:id="@+id/nav_profile"
             android:icon="@drawable/ic_account_circle"
-            android:title="My Profile" />
+            android:title="My Profile">
+            <menu>
+                <item
+                    android:id="@+id/nav_display_name"
+                    android:title="Display Name"
+                    android:icon="@drawable/ic_display_name" />
+                <item
+                    android:id="@+id/nav_reset_password"
+                    android:title="Reset Password"
+                    android:icon="@drawable/ic_reset_password" />
+            </menu>
+        </item>
 
         <item
             android:id="@+id/nav_add_credentials"

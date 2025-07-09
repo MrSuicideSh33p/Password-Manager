@@ -69,7 +69,7 @@ public class RegisterActivity extends AppCompatActivity {
                         return;
                 }
 
-                awsS3Helper.registerUser(USERS_JSON, getUserFolder(username), username, password, success -> runOnUiThread(() -> {
+                awsS3Helper.registerUser(getUserFolder(username), username, password, success -> runOnUiThread(() -> {
                     if (success) {
                         showToast(this, "User successfully registered!");
                         navigateToLogin();
