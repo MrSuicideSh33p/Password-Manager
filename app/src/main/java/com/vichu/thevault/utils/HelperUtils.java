@@ -10,6 +10,8 @@ import java.io.InputStreamReader;
 
 public class HelperUtils {
 
+    public static final String PASSWORD_FIELD = "password";
+    public static final String DISPLAY_NAME_FIELD = "displayName";
     public static final String USERS_JSON = "credentials/user.json";
     public static final String TAG = "AwsS3Helper";
     public static final String BUCKET_NAME = "the-vault-bucket";

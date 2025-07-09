@@ -1,7 +1,9 @@
 package com.vichu.thevault.utils;
 
 import static com.vichu.thevault.utils.HelperUtils.BUCKET_NAME;
+import static com.vichu.thevault.utils.HelperUtils.DISPLAY_NAME_FIELD;
 import static com.vichu.thevault.utils.HelperUtils.ENDPOINT;
+import static com.vichu.thevault.utils.HelperUtils.PASSWORD_FIELD;
 import static com.vichu.thevault.utils.HelperUtils.TAG;
 import static com.vichu.thevault.utils.HelperUtils.USERS_JSON;
 import static com.vichu.thevault.utils.HelperUtils.getMetadataFile;
@@ -27,6 +29,9 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vichu.thevault.R;
 import com.vichu.thevault.models.CredentialData;
 
@@ -156,7 +161,6 @@ public class AwsS3Helper {
     }
 
     // Create folder for user and update user.json
-    //TODO check if this can also use fileContent and toFileFormat from model class
     public void registerUser(String userFolder, String username, String password, CreateListener listener) {
         executor.execute(() -> {
             try {
@@ -177,7 +181,10 @@ public class AwsS3Helper {
 
                 // Convert existing user to JSON object
                 JSONObject userJson = new JSONObject(existingUserJson);
-                userJson.put(username, password);
+                JSONObject userDetailsJson = new JSONObject();
+                userDetailsJson.put(PASSWORD_FIELD, password);
+                userDetailsJson.put(DISPLAY_NAME_FIELD, JSONObject.NULL);
+                userJson.put(username, userDetailsJson);
 
                 // Upload updated user.json
                 InputStream updatedUserStream = new ByteArrayInputStream(userJson.toString().getBytes(StandardCharsets.UTF_8));
@@ -284,10 +291,14 @@ public class AwsS3Helper {
                     listener.onResult(null, null);
                     return;
                 }
+
                 S3Object s3Object = s3Client.getObject(BUCKET_NAME, fileName);
                 String content = readInputStream(s3Object.getObjectContent());
+
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode jsonNode = objectMapper.readTree(content);
                 s3Object.close();
-                listener.onResult(new JSONObject(content), null);
+                listener.onResult(jsonNode, null);
             } catch (Exception e) {
                 listener.onResult(null, e.getMessage());
             }
@@ -309,13 +320,17 @@ public class AwsS3Helper {
                 }
 
                 // Convert existing user to JSON object
-                JSONObject userJson = new JSONObject(existingUserJson);
-                userJson.put(username, password);
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode jsonNode = objectMapper.readTree(existingUserJson);
+                ObjectNode objectNode = (ObjectNode) jsonNode;
+                ObjectNode userNode = (ObjectNode) objectNode.get(username);
+                userNode.put(PASSWORD_FIELD, password);
+                String updatedJson = objectMapper.writeValueAsString(objectNode);
 
                 // Upload updated user.json
-                InputStream updatedUserStream = new ByteArrayInputStream(userJson.toString().getBytes(StandardCharsets.UTF_8));
+                InputStream updatedUserStream = new ByteArrayInputStream(updatedJson.getBytes(StandardCharsets.UTF_8));
                 ObjectMetadata userMetadata = new ObjectMetadata();
-                userMetadata.setContentLength(userJson.toString().length());
+                userMetadata.setContentLength(updatedJson.length());
 
                 s3Client.putObject(BUCKET_NAME, USERS_JSON, updatedUserStream, userMetadata);
                 Log.d("S3_USER", "User.json file updated successfully.");
@@ -352,7 +367,7 @@ public class AwsS3Helper {
     }
 
     public interface UserDataListener {
-        void onResult(JSONObject userDataList, String errorMessage);
+        void onResult(JsonNode userDataList, String errorMessage);
     }
 
     public interface CreateListener {

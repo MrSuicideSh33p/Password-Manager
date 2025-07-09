@@ -1,12 +1,11 @@
 package com.vichu.thevault.activities;
 
-import static com.vichu.thevault.utils.HelperUtils.TAG;
+import static com.vichu.thevault.utils.HelperUtils.PASSWORD_FIELD;
 import static com.vichu.thevault.utils.HelperUtils.USERS_JSON;
 import static com.vichu.thevault.utils.HelperUtils.showToast;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -14,10 +13,9 @@ import android.widget.ProgressBar;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.vichu.thevault.R;
 import com.vichu.thevault.utils.AwsS3Helper;
-
-import org.json.JSONException;
 
 public class ResetPasswordActivity extends AppCompatActivity {
 
@@ -63,42 +61,38 @@ public class ResetPasswordActivity extends AppCompatActivity {
                     return;
                 }
 
-                try {
-                    if (!userDataList.getString(user).equals(currentPassword)) {
-                        updateUI( "The current password entered is incorrect!");
-                        return;
-                    }
-
-                    if (!newPassword.equals(confirmNewPassword)) {
-                        updateUI("The passwords do not match!");
-                        return;
-                    }
-
-                    if (currentPassword.equals(newPassword)) {
-                        updateUI("New password must be different from the current one!");
-                        return;
-                    }
-
-                    if (newPassword.length() < 8) {
-                        updateUI("Password must be at least 8 characters!");
-                        return;
-                    }
-
-                    awsS3Helper.updateUserDetails(user, newPassword, success -> runOnUiThread(() -> {
-                        if (success) {
-                            showToast(this, "Password updated successfully!");
-                            progressBar.setVisibility(View.GONE);
-                            navigateToMain();
-                        } else {
-                            updateUI("Failed to update password!");
-                        }
-                        changePasswordButton.setEnabled(true);
-                    }));
-
-                } catch (JSONException e) {
-                    Log.e(TAG, "Error parsing user.json content: " + e.getMessage());
-                    updateUI( "Internal server error!");
+                JsonNode jsonNode = userDataList.get(user);
+                if (!jsonNode.get(PASSWORD_FIELD).asText().equals(currentPassword)) {
+                    updateUI( "The current password entered is incorrect!");
+                    return;
                 }
+
+                if (!newPassword.equals(confirmNewPassword)) {
+                    updateUI("The passwords do not match!");
+                    return;
+                }
+
+                if (currentPassword.equals(newPassword)) {
+                    updateUI("New password must be different from the current one!");
+                    return;
+                }
+
+                if (newPassword.length() < 8) {
+                    updateUI("Password must be at least 8 characters!");
+                    return;
+                }
+
+                awsS3Helper.updateUserDetails(user, newPassword, success -> runOnUiThread(() -> {
+                    if (success) {
+                        showToast(this, "Password updated successfully!");
+                        progressBar.setVisibility(View.GONE);
+                        navigateToMain();
+                    } else {
+                        updateUI("Failed to update password!");
+                    }
+                    changePasswordButton.setEnabled(true);
+                }));
+
             }));
         });
     }

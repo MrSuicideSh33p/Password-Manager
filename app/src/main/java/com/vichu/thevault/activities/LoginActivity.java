@@ -1,21 +1,19 @@
 package com.vichu.thevault.activities;
 
-import static com.vichu.thevault.utils.HelperUtils.TAG;
+import static com.vichu.thevault.utils.HelperUtils.PASSWORD_FIELD;
 import static com.vichu.thevault.utils.HelperUtils.USERS_JSON;
 import static com.vichu.thevault.utils.HelperUtils.showToast;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.vichu.thevault.R;
 import com.vichu.thevault.utils.AwsS3Helper;
-
-import org.json.JSONException;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -60,16 +58,12 @@ public class LoginActivity extends AppCompatActivity {
                     return;
                 }
 
-                try {
-                    if (userDataList.getString(username).equals(password)) {
-                        showToast(this, "User successfully verified!");
-                        openMainActivityScreen(username);
-                    } else {
-                        showToast(this, "Incorrect credentials!");
-                    }
-                } catch (JSONException e) {
-                    Log.e(TAG, "Error parsing user.json content: " + e.getMessage());
-                    showToast(this, "Internal server error!");
+                JsonNode jsonNode = userDataList.get(username);
+                if (jsonNode.get(PASSWORD_FIELD).asText().equals(password)) {
+                    showToast(this, "User successfully verified!");
+                    openMainActivityScreen(username);
+                } else {
+                    showToast(this, "Incorrect credentials!");
                 }
             }));
         });
