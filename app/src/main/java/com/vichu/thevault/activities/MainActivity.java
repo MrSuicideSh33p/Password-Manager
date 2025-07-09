@@ -61,8 +61,6 @@ public class MainActivity extends AppCompatActivity {
                 openAddCredentialsScreen(username);
             } else if (item.getItemId() == R.id.nav_view_credentials) {
                 openViewCredentialsScreen(username);
-            } else if (item.getItemId() == R.id.nav_profile) {
-                openProfileScreen(username);
             }
             drawerLayout.closeDrawer(GravityCompat.START);
             return true;
@@ -81,12 +79,6 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    private void openProfileScreen(String username) {
-        Intent intent = new Intent(this, ProfileActivity.class);
-        intent.putExtra("user", username);
-        startActivity(intent);
-    }
-
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_activity_menu, menu);
@@ -99,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
         if (id == R.id.action_logout) {
             Snackbar.make(findViewById(android.R.id.content), "Are you sure you want to logout?", Snackbar.LENGTH_LONG)
                     .setAction("Logout", v -> logout())
+                    .setDuration(5000)
                     .show();
             return true;
         }
