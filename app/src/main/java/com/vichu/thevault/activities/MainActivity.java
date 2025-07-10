@@ -10,71 +10,71 @@ import android.view.MenuItem;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
 import com.vichu.thevault.R;
+import com.vichu.thevault.adapters.DrawerAdapter;
+import com.vichu.thevault.models.DrawerItem;
+import com.vichu.thevault.models.SubItem;
 import com.vichu.thevault.utils.AwsS3Helper;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
+    private String user;
+    private AwsS3Helper awsS3Helper;
+
     private DrawerLayout drawerLayout;
     private ActionBarDrawerToggle toggle;
-    private AwsS3Helper awsS3Helper;
+    private RecyclerView drawerRecyclerView;
+    private DrawerAdapter drawerAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main_activity);
-        awsS3Helper = new AwsS3Helper(this);
 
-        // Initialize Toolbar
+        awsS3Helper = new AwsS3Helper(this);
+        user = getIntent().getStringExtra("user");
+
+        setupToolbar();
+        setupDrawerLayout();
+        setWelcomeText();
+        setupMainSection();
+        setupDrawerItems();
+    }
+
+    private void setupToolbar() {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        // Show hamburger icon
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setHomeButtonEnabled(true);
+        }
+    }
 
-        Intent intent = getIntent();
-        String username = intent.getStringExtra("user");
-        setWelcomeText(username);
-
-        LinearLayout addCredentialSection = findViewById(R.id.add_credentials_section);
-        addCredentialSection.setOnClickListener(v -> openAddCredentialsScreen(username));
-
-        LinearLayout viewCredentialSection = findViewById(R.id.view_credentials_section);
-        viewCredentialSection.setOnClickListener(v -> openViewCredentialsScreen(username));
-
-        // Initialize DrawerLayout and NavigationView
+    private void setupDrawerLayout() {
         drawerLayout = findViewById(R.id.drawer_layout);
-        NavigationView navigationView = findViewById(R.id.nav_view);
+        drawerRecyclerView = findViewById(R.id.drawer_recycler);
 
         // Setup the Drawer Toggle
-        toggle = new ActionBarDrawerToggle(this, drawerLayout, toolbar,
+        toggle = new ActionBarDrawerToggle(this, drawerLayout,
                 R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
-
-        // Handle Navigation Drawer Clicks
-        navigationView.setNavigationItemSelectedListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.nav_display_name) {
-                openSetDisplayNameScreen(username);
-            } else if (id == R.id.nav_reset_password) {
-                openResetPasswordScreen(username);
-            } else if (id == R.id.nav_add_credentials) {
-                openAddCredentialsScreen(username);
-            } else if (id == R.id.nav_view_credentials) {
-                openViewCredentialsScreen(username);
-            }
-            drawerLayout.closeDrawer(GravityCompat.START);
-            return true;
-        });
     }
 
-    private void setWelcomeText(String user) {
+    private void setWelcomeText() {
         awsS3Helper.fetchUserDetails(USERS_JSON, (userData, errorMessage) -> runOnUiThread(() -> {
             String displayName = user;
             if (errorMessage == null) {
@@ -83,38 +83,59 @@ public class MainActivity extends AppCompatActivity {
                     displayName = existingDisplayName;
                 }
             }
-
             TextView welcomeText = findViewById(R.id.welcome_text);
-            welcomeText.setText(new StringBuilder()
-                    .append("Welcome ")
-                    .append(displayName.replaceAll("@.*", ""))
-                    .append("!")
-                    .toString());
+            welcomeText.setText("Welcome " + displayName.replaceAll("@.*", "") + "!");
         }));
     }
 
+    private void setupMainSection() {
+        LinearLayout addCredentialSection = findViewById(R.id.add_credentials_section);
+        LinearLayout viewCredentialSection = findViewById(R.id.view_credentials_section);
+
+        addCredentialSection.setOnClickListener(v -> openAddCredentialsScreen(user));
+        viewCredentialSection.setOnClickListener(v -> openViewCredentialsScreen(user));
+    }
+
+    private void setupDrawerItems() {
+        drawerRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        List<DrawerItem> drawerItems = new ArrayList<>();
+
+        List<SubItem> profileItems = new ArrayList<>();
+        profileItems.add(new SubItem("Display Name", () -> openSetDisplayNameScreen(user)));
+        profileItems.add(new SubItem("Reset Password", () -> openResetPasswordScreen(user)));
+
+        List<SubItem> credentialItems = new ArrayList<>();
+        credentialItems.add(new SubItem("Add Credentials", () -> openAddCredentialsScreen(user)));
+        credentialItems.add(new SubItem("View Credentials", () -> openViewCredentialsScreen(user)));
+
+        drawerItems.add(new DrawerItem("My Profile", profileItems));
+        drawerItems.add(new DrawerItem("Manage Credentials", credentialItems));
+
+        drawerAdapter = new DrawerAdapter(drawerItems);
+        drawerRecyclerView.setAdapter(drawerAdapter);
+    }
+
     private void openSetDisplayNameScreen(String username) {
-        Intent intent = new Intent(this, DisplayNameActivity.class);
-        intent.putExtra("user", username);
-        startActivity(intent);
+        startActivity(new Intent(this, DisplayNameActivity.class).putExtra("user", username));
     }
 
     private void openResetPasswordScreen(String username) {
-        Intent intent = new Intent(this, ResetPasswordActivity.class);
-        intent.putExtra("user", username);
-        startActivity(intent);
+        startActivity(new Intent(this, ResetPasswordActivity.class).putExtra("user", username));
     }
 
     private void openAddCredentialsScreen(String username) {
-        Intent intent = new Intent(this, AddCredentialsActivity.class);
-        intent.putExtra("user", username);
-        startActivity(intent);
+        startActivity(new Intent(this, AddCredentialsActivity.class).putExtra("user", username));
     }
 
     private void openViewCredentialsScreen(String username) {
-        Intent intent = new Intent(this, CredentialListActivity.class);
-        intent.putExtra("user", username);
+        startActivity(new Intent(this, CredentialListActivity.class).putExtra("user", username));
+    }
+
+    private void logout() {
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         startActivity(intent);
+        finish();
     }
 
     @Override
@@ -124,22 +145,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_logout) {
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        // Handle toggle first
+        if (toggle.onOptionsItemSelected(item)) {
+            return true;
+        }
+
+        if (item.getItemId() == R.id.action_logout) {
             Snackbar.make(findViewById(android.R.id.content), "Are you sure you want to logout?", Snackbar.LENGTH_LONG)
                     .setAction("Logout", v -> logout())
                     .setDuration(5000)
                     .show();
             return true;
         }
-        return super.onOptionsItemSelected(item);
-    }
 
-    private void logout() {
-        Intent intent = new Intent(this, LoginActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        startActivity(intent);
-        finish();
+        return super.onOptionsItemSelected(item);
     }
 }

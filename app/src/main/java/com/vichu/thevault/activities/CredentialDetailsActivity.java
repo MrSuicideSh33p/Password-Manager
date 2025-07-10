@@ -75,6 +75,7 @@ public class CredentialDetailsActivity extends AppCompatActivity {
         awsS3Helper.fetchCredentialDetails(credentialFile, (credentialData, errorMessage) -> {
             runOnUiThread(() -> {
                 if (errorMessage != null) {
+                    Log.e("Error: ", errorMessage);
                     showToast(this, "Error: " + errorMessage);
                     return;
                 }
