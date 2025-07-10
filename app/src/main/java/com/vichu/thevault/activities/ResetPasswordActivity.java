@@ -7,12 +7,14 @@ import static com.vichu.thevault.utils.HelperUtils.showToast;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vichu.thevault.R;
@@ -32,6 +34,7 @@ public class ResetPasswordActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.reset_password_activity);
 
+        initToolbar();
         awsS3Helper = new AwsS3Helper(this);
         progressBar = findViewById(R.id.progressBar);
         user = getIntent().getStringExtra("user");
@@ -97,6 +100,24 @@ public class ResetPasswordActivity extends AppCompatActivity {
 
             }));
         });
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            navigateToMain();
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void initToolbar() {
+        Toolbar toolbar = findViewById(R.id.resetPasswordToolbar);
+        setSupportActionBar(toolbar);
+
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setHomeButtonEnabled(true);
+        }
     }
 
     private void updateUI(String message) {

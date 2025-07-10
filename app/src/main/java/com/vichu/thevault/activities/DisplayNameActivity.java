@@ -6,12 +6,14 @@ import static com.vichu.thevault.utils.HelperUtils.showToast;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 
 import com.vichu.thevault.R;
 import com.vichu.thevault.utils.AwsS3Helper;
@@ -29,6 +31,7 @@ public class DisplayNameActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.display_name_activity);
+        initToolbar();
 
         displayNameInput = findViewById(R.id.display_name_input);
         displayNameButton = findViewById(R.id.display_name_btn);
@@ -74,6 +77,24 @@ public class DisplayNameActivity extends AppCompatActivity {
                 }
             }));
         });
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            navigateToMain();
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void initToolbar() {
+        Toolbar toolbar = findViewById(R.id.displayNameToolbar);
+        setSupportActionBar(toolbar);
+
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setHomeButtonEnabled(true);
+        }
     }
 
     private void navigateToMain() {
